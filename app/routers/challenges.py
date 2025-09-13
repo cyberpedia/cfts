@@ -1,6 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 
 from .. import auth, crud, models, schemas
 from ..database import get_db
@@ -42,6 +43,15 @@ def submit_flag(
     """
     Submit a flag for a challenge.
     """
+    settings = crud.get_settings(db)
+    now = datetime.now(timezone.utc)
+
+    if settings.event_start_time and now < settings.event_start_time:
+        raise HTTPException(status_code=403, detail="The event has not started yet.")
+    
+    if settings.event_end_time and now > settings.event_end_time:
+        raise HTTPException(status_code=403, detail="The event has ended.")
+
     challenge = crud.get_challenge(db, challenge_id=challenge_id, user_id=current_user.id)
 
     if challenge is None or not challenge.is_visible:
@@ -65,7 +75,6 @@ def submit_flag(
             detail="Incorrect flag."
         )
 
-    # Correct flag submission
     crud.create_solve(db=db, user=current_user, challenge=challenge)
     crud.update_user_score(db=db, user=current_user, points=challenge.points)
 
