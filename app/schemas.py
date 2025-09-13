@@ -6,6 +6,9 @@ from datetime import datetime
 # Base Schemas (for creation/updates)
 # ==================================
 
+class FlagSubmission(BaseModel):
+    flag: str
+
 class TagBase(BaseModel):
     name: str
 
