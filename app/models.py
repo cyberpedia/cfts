@@ -34,6 +34,7 @@ class User(Base):
     team_id = Column(Integer, ForeignKey("teams.id"))
     team = relationship("Team", back_populates="members")
     solves = relationship("Solve", back_populates="user")
+    badges = relationship("UserBadge", back_populates="user")
 
 class Team(Base):
     __tablename__ = "teams"
@@ -90,5 +91,22 @@ class CTFSetting(Base):
     event_end_time = Column(DateTime(timezone=True), nullable=True)
     allow_registrations = Column(Boolean, default=True)
     allow_teams = Column(Boolean, default=True)
-    scoring_mode = Column(String, default="static") # static or dynamic
+    scoring_mode = Column(String, default="static")
     __table_args__ = (CheckConstraint('id = 1', name='singleton_check'),)
+
+class Badge(Base):
+    __tablename__ = "badges"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+    description = Column(String, nullable=False)
+    icon_url = Column(String, nullable=True)
+
+class UserBadge(Base):
+    __tablename__ = "user_badges"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    badge_id = Column(Integer, ForeignKey("badges.id"), nullable=False)
+    awarded_at = Column(DateTime(timezone=True), server_default=func.now())
+    user = relationship("User", back_populates="badges")
+    badge = relationship("Badge")
+    __table_args__ = (UniqueConstraint('user_id', 'badge_id', name='_user_badge_uc'),)
