@@ -2,15 +2,14 @@ import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import apiClient from '../services/api';
+import { useSolvesStore } from './solves';
 
 export const useAuthStore = defineStore('auth', () => {
   const router = useRouter();
   
-  // State
   const user = ref(JSON.parse(localStorage.getItem('user')));
   const accessToken = ref(localStorage.getItem('accessToken'));
 
-  // Persist state
   watch(accessToken, (token) => {
     if (token) localStorage.setItem('accessToken', token);
     else localStorage.removeItem('accessToken');
@@ -21,7 +20,6 @@ export const useAuthStore = defineStore('auth', () => {
     else localStorage.removeItem('user');
   });
 
-  // Actions
   async function register(userInfo) {
     try {
       return await apiClient.post('/users/', userInfo);
@@ -45,9 +43,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function fetchUser() {
+    const solvesStore = useSolvesStore();
     try {
       const response = await apiClient.get('/users/me');
       user.value = response.data;
+      solvesStore.populateUserSolves(response.data.solves || []);
     } catch (error) {
       console.error('Failed to fetch user:', error);
       await logout();
@@ -56,27 +56,36 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function refreshUserProfile() {
-    // Re-fetches user data without a full login cycle
     if (!accessToken.value) return;
+    const solvesStore = useSolvesStore();
     try {
         const response = await apiClient.get('/users/me');
         user.value = response.data;
+        solvesStore.populateUserSolves(response.data.solves || []);
     } catch (error) {
-        console.error("Could not refresh user profile, token might be expired.", error);
-        // If the token is invalid, this will fail. Consider logging out.
+        console.error("Could not refresh user profile.", error);
         if (error.response?.status === 401) {
             await logout();
         }
     }
   }
   
+  async function handleSocialLogin(token) {
+    accessToken.value = token;
+    await fetchUser();
+  }
+
   async function logout() {
     user.value = null;
     accessToken.value = null;
+    // Also clear solves on logout
+    const solvesStore = useSolvesStore();
+    solvesStore.clearSolves();
+    
     if (router) {
       router.push({ name: 'login' });
     }
   }
   
-  return { user, accessToken, register, login, logout, fetchUser, refreshUserProfile };
+  return { user, accessToken, register, login, logout, fetchUser, refreshUserProfile, handleSocialLogin };
 });
