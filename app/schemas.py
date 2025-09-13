@@ -47,6 +47,10 @@ class BadgeBase(BaseModel):
     description: str
     icon_url: Optional[str] = None
 
+class NotificationBase(BaseModel):
+    title: str
+    body: str
+
 # ==================================
 # Create & Update Schemas
 # ==================================
@@ -163,6 +167,13 @@ class PublicCTFSetting(BaseModel):
     ui_theme: str
     event_start_time: Optional[datetime] = None
     event_end_time: Optional[datetime] = None
+    class Config: orm_mode = True
+
+class Notification(NotificationBase):
+    id: int
+    user_id: int
+    is_read: bool
+    created_at: datetime
     class Config: orm_mode = True
 
 # Update forward references
