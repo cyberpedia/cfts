@@ -9,13 +9,21 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue';
 import NavBar from './components/NavBar.vue';
 import Footer from './components/Footer.vue';
+import { useSettingsStore } from './stores/settings';
+
+const settingsStore = useSettingsStore();
+
+// Fetch public settings when the application loads
+onMounted(() => {
+  settingsStore.fetchPublicSettings();
+});
 </script>
 
 <style>
-/* Global styles remain the same */
 body {
-  background-color: #1a202c; /* Equivalent to bg-gray-900 */
+  background-color: #1a202c;
 }
 </style>
