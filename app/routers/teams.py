@@ -16,6 +16,10 @@ def create_team(
     """
     Create a new team. The creator automatically joins the team.
     """
+    settings = crud.get_settings(db)
+    if not settings.allow_teams:
+        raise HTTPException(status_code=403, detail="Team creation is currently disabled.")
+
     if current_user.team_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -67,6 +71,10 @@ def join_team(
     """
     Join an existing team.
     """
+    settings = crud.get_settings(db)
+    if not settings.allow_teams:
+        raise HTTPException(status_code=403, detail="Joining teams is currently disabled.")
+
     if current_user.team_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
