@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Boolean, Column, ForeignKey, Integer, String, DateTime, Table,
-    UniqueConstraint
+    UniqueConstraint, CheckConstraint
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -23,7 +23,6 @@ challenge_dependencies = Table(
 
 class User(Base):
     __tablename__ = "users"
-
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
@@ -32,39 +31,30 @@ class User(Base):
     is_staff = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=False, nullable=False)
     verification_token = Column(String, unique=True, nullable=True)
-    
     team_id = Column(Integer, ForeignKey("teams.id"))
     team = relationship("Team", back_populates="members")
     solves = relationship("Solve", back_populates="user")
 
 class Team(Base):
     __tablename__ = "teams"
-
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
-
     members = relationship("User", back_populates="team")
     solves = relationship("Solve", back_populates="team")
 
 class Challenge(Base):
     __tablename__ = "challenges"
-
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    points = Column(Integer, nullable=False)  # For static scoring
+    points = Column(Integer, nullable=False)
     flag = Column(String, nullable=False)
     is_visible = Column(Boolean, default=False, nullable=False)
-
-    # Fields for dynamic scoring
     initial_points = Column(Integer, nullable=True)
     minimum_points = Column(Integer, nullable=True)
     decay_factor = Column(Integer, nullable=True)
-
     tags = relationship("Tag", secondary=challenge_tag_association, back_populates="challenges")
     solves = relationship("Solve", back_populates="challenge")
-    
-    # Self-referential relationship for dependencies
     dependencies = relationship(
         "Challenge",
         secondary=challenge_dependencies,
@@ -75,23 +65,30 @@ class Challenge(Base):
 
 class Tag(Base):
     __tablename__ = "tags"
-
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, nullable=False)
-
     challenges = relationship("Challenge", secondary=challenge_tag_association, back_populates="tags")
 
 class Solve(Base):
     __tablename__ = "solves"
-
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     challenge_id = Column(Integer, ForeignKey("challenges.id"), nullable=False)
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
     user = relationship("User", back_populates="solves")
     challenge = relationship("Challenge", back_populates="solves")
     team = relationship("Team", back_populates="solves")
-
     __table_args__ = (UniqueConstraint('user_id', 'challenge_id', name='_user_challenge_uc'),)
+
+class CTFSetting(Base):
+    __tablename__ = "ctf_settings"
+    id = Column(Integer, primary_key=True, default=1)
+    event_title = Column(String, default="CTF Platform")
+    ui_theme = Column(String, default="dark")
+    event_start_time = Column(DateTime(timezone=True), nullable=True)
+    event_end_time = Column(DateTime(timezone=True), nullable=True)
+    allow_registrations = Column(Boolean, default=True)
+    allow_teams = Column(Boolean, default=True)
+    scoring_mode = Column(String, default="static") # static or dynamic
+    __table_args__ = (CheckConstraint('id = 1', name='singleton_check'),)
