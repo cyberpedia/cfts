@@ -95,14 +95,14 @@ class ChallengeList(BaseModel):
     id: int
     name: str
     points: int
-    is_locked: bool = True  # Computed field
+    is_locked: bool = True
 
     class Config:
         orm_mode = True
 
 class ChallengeDetail(ChallengeBase):
     id: int
-    is_locked: bool = True  # Computed field
+    is_locked: bool = True
     tags: List[Tag] = []
     solves: List[Solve] = []
 
@@ -127,6 +127,13 @@ class User(UserBase):
 
     class Config:
         orm_mode = True
+
+class LeaderboardEntry(BaseModel):
+    rank: int
+    team_id: int
+    team_name: str
+    total_score: int
+    last_submission: Optional[datetime] = None
 
 # Update forward references to resolve circular dependencies
 Team.update_forward_refs()
