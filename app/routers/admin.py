@@ -12,9 +12,6 @@ def read_settings(
     db: Session = Depends(get_db),
     current_admin: models.User = Depends(auth.get_current_admin_user)
 ):
-    """
-    Retrieve the full CTF settings (Admin only).
-    """
     return crud.get_settings(db)
 
 @router.put("/settings/", response_model=schemas.CTFSetting)
@@ -23,9 +20,6 @@ def update_settings(
     db: Session = Depends(get_db),
     current_admin: models.User = Depends(auth.get_current_admin_user)
 ):
-    """
-    Update the CTF settings (Admin only).
-    """
     return crud.update_settings(db, settings_data)
 
 # ==================================
@@ -38,9 +32,6 @@ def create_badge(
     db: Session = Depends(get_db),
     current_admin: models.User = Depends(auth.get_current_admin_user)
 ):
-    """
-    Create a new badge.
-    """
     db_badge = crud.get_badge_by_name(db, name=badge.name)
     if db_badge:
         raise HTTPException(status_code=400, detail="Badge with this name already exists")
@@ -53,9 +44,6 @@ def read_badges(
     db: Session = Depends(get_db),
     current_admin: models.User = Depends(auth.get_current_admin_user)
 ):
-    """
-    Retrieve all badges.
-    """
     return crud.get_badges(db, skip=skip, limit=limit)
 
 @router.get("/badges/{badge_id}", response_model=schemas.Badge)
@@ -64,9 +52,6 @@ def read_badge(
     db: Session = Depends(get_db),
     current_admin: models.User = Depends(auth.get_current_admin_user)
 ):
-    """
-    Retrieve a single badge by its ID.
-    """
     db_badge = crud.get_badge(db, badge_id=badge_id)
     if db_badge is None:
         raise HTTPException(status_code=404, detail="Badge not found")
@@ -79,14 +64,10 @@ def update_badge(
     db: Session = Depends(get_db),
     current_admin: models.User = Depends(auth.get_current_admin_user)
 ):
-    """
-    Update an existing badge.
-    """
     db_badge = crud.get_badge(db, badge_id=badge_id)
     if db_badge is None:
         raise HTTPException(status_code=404, detail="Badge not found")
     
-    # Check if the new name is already taken by another badge
     existing_badge_with_name = crud.get_badge_by_name(db, name=badge.name)
     if existing_badge_with_name and existing_badge_with_name.id != badge_id:
         raise HTTPException(status_code=400, detail="Another badge with this name already exists")
@@ -99,9 +80,40 @@ def delete_badge(
     db: Session = Depends(get_db),
     current_admin: models.User = Depends(auth.get_current_admin_user)
 ):
-    """
-    Delete a badge.
-    """
     if not crud.delete_badge(db, badge_id=badge_id):
         raise HTTPException(status_code=404, detail="Badge not found")
     return
+
+# ==================================
+# User Verification Endpoints
+# ==================================
+
+@router.get("/users/pending", response_model=List[schemas.User])
+def get_pending_verification_users(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(auth.get_current_admin_user)
+):
+    """
+    Retrieve all users pending email verification.
+    """
+    return crud.get_pending_users(db, skip=skip, limit=limit)
+
+@router.post("/users/{user_id}/approve", response_model=schemas.User)
+def approve_user_registration(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_admin: models.User = Depends(auth.get_current_admin_user)
+):
+    """
+    Manually approve and activate a user's account.
+    """
+    db_user = crud.get_user(db, user_id=user_id)
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if db_user.is_active:
+        raise HTTPException(status_code=400, detail="User is already active")
+        
+    return crud.approve_user(db=db, user=db_user)
