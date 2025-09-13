@@ -10,6 +10,7 @@ import LeaderboardView from '../views/LeaderboardView.vue'
 import TeamsView from '../views/TeamsView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import NotificationsView from '../views/NotificationsView.vue'
+import AuthCallbackView from '../views/AuthCallbackView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -17,6 +18,7 @@ const router = createRouter({
     { path: '/', name: 'home', component: HomeView },
     { path: '/login', name: 'login', component: LoginView, meta: { guestOnly: true } },
     { path: '/register', name: 'register', component: RegisterView, meta: { guestOnly: true } },
+    { path: '/auth/callback', name: 'auth-callback', component: AuthCallbackView },
     {
       path: '/challenges',
       name: 'challenges',
