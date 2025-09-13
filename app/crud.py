@@ -9,9 +9,6 @@ from datetime import datetime
 # ==================================
 
 def get_settings(db: Session) -> models.CTFSetting:
-    """
-    Retrieves the CTF settings. If no settings exist, creates default ones.
-    """
     db_settings = db.query(models.CTFSetting).first()
     if not db_settings:
         db_settings = models.CTFSetting(
@@ -27,9 +24,6 @@ def get_settings(db: Session) -> models.CTFSetting:
     return db_settings
 
 def update_settings(db: Session, settings_data: schemas.CTFSettingUpdate) -> models.CTFSetting:
-    """
-    Updates the CTF settings.
-    """
     db_settings = get_settings(db)
     update_data = settings_data.dict(exclude_unset=True)
     for key, value in update_data.items():
@@ -42,6 +36,10 @@ def update_settings(db: Session, settings_data: schemas.CTFSettingUpdate) -> mod
 # User CRUD Functions
 # ==================================
 
+def get_user(db: Session, user_id: int) -> Optional[models.User]:
+    """Retrieve a user by their ID."""
+    return db.query(models.User).filter(models.User.id == user_id).first()
+
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
@@ -50,6 +48,10 @@ def get_user_by_username(db: Session, username: str):
 
 def get_user_by_verification_token(db: Session, token: str):
     return db.query(models.User).filter(models.User.verification_token == token).first()
+
+def get_pending_users(db: Session, skip: int = 0, limit: int = 100) -> List[models.User]:
+    """Retrieve all users who have not yet been activated."""
+    return db.query(models.User).filter(models.User.is_active == False).offset(skip).limit(limit).all()
 
 def create_user(db: Session, user: schemas.UserCreate):
     hashed_password = security.get_password_hash(user.password)
@@ -68,6 +70,14 @@ def create_user(db: Session, user: schemas.UserCreate):
 
 def update_user_score(db: Session, user: models.User, points: int):
     user.score += points
+    db.commit()
+    db.refresh(user)
+    return user
+    
+def approve_user(db: Session, user: models.User) -> models.User:
+    """Manually approves a user."""
+    user.is_active = True
+    user.verification_token = None
     db.commit()
     db.refresh(user)
     return user
@@ -118,7 +128,6 @@ def has_user_solved_challenge(db: Session, user_id: int, challenge_id: int) -> b
     ).first() is not None
 
 def get_solve_count_for_challenge(db: Session, challenge_id: int) -> int:
-    """Counts how many times a challenge has been solved."""
     return db.query(models.Solve).filter(models.Solve.challenge_id == challenge_id).count()
 
 def get_user_solved_challenge_ids(db: Session, user_id: int) -> set:
@@ -213,14 +222,13 @@ def delete_badge(db: Session, badge_id: int) -> bool:
     return False
 
 def award_badge_to_user(db: Session, user: models.User, badge: models.Badge) -> Optional[models.UserBadge]:
-    """Awards a badge to a user if they don't already have it."""
     existing_award = db.query(models.UserBadge).filter(
         models.UserBadge.user_id == user.id,
         models.UserBadge.badge_id == badge.id
     ).first()
 
     if existing_award:
-        return None  # User already has this badge
+        return None
 
     db_user_badge = models.UserBadge(user_id=user.id, badge_id=badge.id)
     db.add(db_user_badge)
