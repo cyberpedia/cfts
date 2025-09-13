@@ -24,6 +24,10 @@ import AdminUserListView from '../views/admin/AdminUserListView.vue'
 import AdminUserEditView from '../views/admin/AdminUserEditView.vue'
 import AdminChallengeListView from '../views/admin/AdminChallengeListView.vue'
 import AdminChallengeEditView from '../views/admin/AdminChallengeEditView.vue'
+import AdminSettingsView from '../views/admin/AdminSettingsView.vue'
+import AdminWriteupQueueView from '../views/admin/AdminWriteupQueueView.vue'
+import AdminAuditLogView from '../views/admin/AdminAuditLogView.vue'
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -52,7 +56,9 @@ const router = createRouter({
         { path: 'challenges', name: 'admin-challenges', component: AdminChallengeListView },
         { path: 'challenges/new', name: 'admin-challenge-new', component: AdminChallengeEditView },
         { path: 'challenges/:id/edit', name: 'admin-challenge-edit', component: AdminChallengeEditView, props: true },
-        { path: 'settings', name: 'admin-settings', component: { template: '<h1>Admin Settings</h1>' } },
+        { path: 'settings', name: 'admin-settings', component: AdminSettingsView },
+        { path: 'writeups', name: 'admin-writeups', component: AdminWriteupQueueView },
+        { path: 'logs', name: 'admin-logs', component: AdminAuditLogView },
       ]
     }
   ]
