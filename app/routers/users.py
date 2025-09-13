@@ -1,16 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from .. import auth, crud, models, schemas
+from .. import auth, crud, models, schemas, email
 from ..database import get_db
 
 router = APIRouter()
 
 
 @router.post("/", response_model=schemas.User)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     """
-    Register a new user.
+    Register a new user and send a verification email.
     """
     settings = crud.get_settings(db)
     if not settings.allow_registrations:
@@ -24,7 +24,16 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     if db_user_by_username:
         raise HTTPException(status_code=400, detail="Username already taken")
 
-    return crud.create_user(db=db, user=user)
+    new_user = crud.create_user(db=db, user=user)
+
+    # Send verification email
+    await email.send_verification_email(
+        email_to=new_user.email,
+        username=new_user.username,
+        token=new_user.verification_token
+    )
+
+    return new_user
 
 
 @router.get("/verify/{token}")
