@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import users, token, challenges
+from app.routers import users, token, challenges, teams, leaderboard
 
 app = FastAPI()
 
@@ -21,6 +21,8 @@ app.add_middleware(
 app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(token.router, tags=["authentication"])
 app.include_router(challenges.router, prefix="/challenges", tags=["challenges"])
+app.include_router(teams.router, prefix="/teams", tags=["teams"])
+app.include_router(leaderboard.router, prefix="/leaderboard", tags=["leaderboard"])
 
 @app.get("/")
 def read_root():
