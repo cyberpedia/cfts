@@ -117,6 +117,10 @@ def has_user_solved_challenge(db: Session, user_id: int, challenge_id: int) -> b
         models.Solve.challenge_id == challenge_id
     ).first() is not None
 
+def get_solve_count_for_challenge(db: Session, challenge_id: int) -> int:
+    """Counts how many times a challenge has been solved."""
+    return db.query(models.Solve).filter(models.Solve.challenge_id == challenge_id).count()
+
 def get_user_solved_challenge_ids(db: Session, user_id: int) -> set:
     solved_challenges = db.query(models.Solve.challenge_id).filter(models.Solve.user_id == user_id).all()
     return {solve.challenge_id for solve in solved_challenges}
@@ -124,22 +128,18 @@ def get_user_solved_challenge_ids(db: Session, user_id: int) -> set:
 def get_visible_challenges(db: Session, user_id: int) -> List[models.Challenge]:
     challenges = db.query(models.Challenge).filter(models.Challenge.is_visible == True).options(joinedload(models.Challenge.dependencies)).all()
     solved_ids = get_user_solved_challenge_ids(db, user_id)
-
     for challenge in challenges:
         dependency_ids = {dep.id for dep in challenge.dependencies}
         challenge.is_locked = not dependency_ids.issubset(solved_ids)
-    
     return challenges
 
 def get_challenge(db: Session, challenge_id: int, user_id: int) -> Optional[models.Challenge]:
     challenge = db.query(models.Challenge).filter(models.Challenge.id == challenge_id).options(joinedload(models.Challenge.dependencies)).first()
     if not challenge:
         return None
-    
     solved_ids = get_user_solved_challenge_ids(db, user_id)
     dependency_ids = {dep.id for dep in challenge.dependencies}
     challenge.is_locked = not dependency_ids.issubset(solved_ids)
-    
     return challenge
 
 def create_solve(db: Session, user: models.User, challenge: models.Challenge) -> models.Solve:
@@ -174,3 +174,56 @@ def get_leaderboard(db: Session):
         )
     )
     return leaderboard_query.all()
+
+# ==================================
+# Badge CRUD Functions
+# ==================================
+
+def get_badge(db: Session, badge_id: int) -> Optional[models.Badge]:
+    return db.query(models.Badge).filter(models.Badge.id == badge_id).first()
+
+def get_badge_by_name(db: Session, name: str) -> Optional[models.Badge]:
+    return db.query(models.Badge).filter(models.Badge.name == name).first()
+
+def get_badges(db: Session, skip: int = 0, limit: int = 100) -> List[models.Badge]:
+    return db.query(models.Badge).offset(skip).limit(limit).all()
+
+def create_badge(db: Session, badge: schemas.BadgeCreate) -> models.Badge:
+    db_badge = models.Badge(**badge.dict())
+    db.add(db_badge)
+    db.commit()
+    db.refresh(db_badge)
+    return db_badge
+
+def update_badge(db: Session, badge_id: int, badge_data: schemas.BadgeCreate) -> Optional[models.Badge]:
+    db_badge = get_badge(db, badge_id)
+    if db_badge:
+        for key, value in badge_data.dict().items():
+            setattr(db_badge, key, value)
+        db.commit()
+        db.refresh(db_badge)
+    return db_badge
+
+def delete_badge(db: Session, badge_id: int) -> bool:
+    db_badge = get_badge(db, badge_id)
+    if db_badge:
+        db.delete(db_badge)
+        db.commit()
+        return True
+    return False
+
+def award_badge_to_user(db: Session, user: models.User, badge: models.Badge) -> Optional[models.UserBadge]:
+    """Awards a badge to a user if they don't already have it."""
+    existing_award = db.query(models.UserBadge).filter(
+        models.UserBadge.user_id == user.id,
+        models.UserBadge.badge_id == badge.id
+    ).first()
+
+    if existing_award:
+        return None  # User already has this badge
+
+    db_user_badge = models.UserBadge(user_id=user.id, badge_id=badge.id)
+    db.add(db_user_badge)
+    db.commit()
+    db.refresh(db_user_badge)
+    return db_user_badge
