@@ -7,19 +7,14 @@ from sqlalchemy.sql import func
 
 from .database import Base
 
-# Association table for Challenge and Tag many-to-many relationship
-challenge_tag_association = Table(
-    'challenge_tag_association', Base.metadata,
+# Association tables
+challenge_tag_association = Table('challenge_tag_association', Base.metadata,
     Column('challenge_id', Integer, ForeignKey('challenges.id')),
-    Column('tag_id', Integer, ForeignKey('tags.id'))
-)
+    Column('tag_id', Integer, ForeignKey('tags.id')))
 
-# Association table for Challenge self-referential many-to-many relationship (dependencies)
-challenge_dependencies = Table(
-    'challenge_dependencies', Base.metadata,
+challenge_dependencies = Table('challenge_dependencies', Base.metadata,
     Column('challenge_id', Integer, ForeignKey('challenges.id'), primary_key=True),
-    Column('dependency_id', Integer, ForeignKey('challenges.id'), primary_key=True)
-)
+    Column('dependency_id', Integer, ForeignKey('challenges.id'), primary_key=True))
 
 class User(Base):
     __tablename__ = "users"
@@ -35,6 +30,7 @@ class User(Base):
     team = relationship("Team", back_populates="members")
     solves = relationship("Solve", back_populates="user")
     badges = relationship("UserBadge", back_populates="user")
+    notifications = relationship("Notification", back_populates="user")
 
 class Team(Base):
     __tablename__ = "teams"
@@ -56,13 +52,10 @@ class Challenge(Base):
     decay_factor = Column(Integer, nullable=True)
     tags = relationship("Tag", secondary=challenge_tag_association, back_populates="challenges")
     solves = relationship("Solve", back_populates="challenge")
-    dependencies = relationship(
-        "Challenge",
-        secondary=challenge_dependencies,
+    dependencies = relationship("Challenge", secondary=challenge_dependencies,
         primaryjoin=id == challenge_dependencies.c.challenge_id,
         secondaryjoin=id == challenge_dependencies.c.dependency_id,
-        backref="dependent_challenges"
-    )
+        backref="dependent_challenges")
 
 class Tag(Base):
     __tablename__ = "tags"
@@ -110,3 +103,13 @@ class UserBadge(Base):
     user = relationship("User", back_populates="badges")
     badge = relationship("Badge")
     __table_args__ = (UniqueConstraint('user_id', 'badge_id', name='_user_badge_uc'),)
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String, nullable=False)
+    body = Column(String, nullable=False)
+    is_read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    user = relationship("User", back_populates="notifications")
