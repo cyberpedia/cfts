@@ -33,8 +33,17 @@ class UserBase(BaseModel):
     username: str
     email: str
 
+class CTFSettingBase(BaseModel):
+    event_title: str
+    ui_theme: str
+    event_start_time: Optional[datetime] = None
+    event_end_time: Optional[datetime] = None
+    allow_registrations: bool
+    allow_teams: bool
+    scoring_mode: str
+
 # ==================================
-# Create Schemas (for API input)
+# Create & Update Schemas
 # ==================================
 
 class TagCreate(TagBase):
@@ -52,11 +61,19 @@ class TeamCreate(TeamBase):
 class UserCreate(UserBase):
     password: str
 
+class CTFSettingUpdate(BaseModel):
+    event_title: Optional[str] = None
+    ui_theme: Optional[str] = None
+    event_start_time: Optional[datetime] = None
+    event_end_time: Optional[datetime] = None
+    allow_registrations: Optional[bool] = None
+    allow_teams: Optional[bool] = None
+    scoring_mode: Optional[str] = None
+
 # ==================================
 # Response Schemas (for API output)
 # ==================================
 
-# Forward declaration for circular dependencies
 class _User(BaseModel):
     id: int
     username: str
@@ -65,57 +82,43 @@ class _User(BaseModel):
     is_staff: bool
     is_active: bool
     team_id: Optional[int] = None
-
-    class Config:
-        orm_mode = True
+    class Config: orm_mode = True
 
 class _Team(BaseModel):
     id: int
     name: str
-
-    class Config:
-        orm_mode = True
+    class Config: orm_mode = True
 
 class Tag(TagBase):
     id: int
-
-    class Config:
-        orm_mode = True
+    class Config: orm_mode = True
 
 class Solve(SolveBase):
     id: int
     created_at: datetime
     user: _User
     team: Optional[_Team] = None
-
-    class Config:
-        orm_mode = True
+    class Config: orm_mode = True
 
 class ChallengeList(BaseModel):
     id: int
     name: str
     points: int
     is_locked: bool = True
-
-    class Config:
-        orm_mode = True
+    class Config: orm_mode = True
 
 class ChallengeDetail(ChallengeBase):
     id: int
     is_locked: bool = True
     tags: List[Tag] = []
     solves: List[Solve] = []
-
-    class Config:
-        orm_mode = True
+    class Config: orm_mode = True
 
 class Team(TeamBase):
     id: int
     members: List[_User] = []
     solves: List[Solve] = []
-
-    class Config:
-        orm_mode = True
+    class Config: orm_mode = True
 
 class User(UserBase):
     id: int
@@ -124,9 +127,7 @@ class User(UserBase):
     is_active: bool
     team_id: Optional[int] = None
     solves: List[Solve] = []
-
-    class Config:
-        orm_mode = True
+    class Config: orm_mode = True
 
 class LeaderboardEntry(BaseModel):
     rank: int
@@ -135,6 +136,17 @@ class LeaderboardEntry(BaseModel):
     total_score: int
     last_submission: Optional[datetime] = None
 
-# Update forward references to resolve circular dependencies
+class CTFSetting(CTFSettingBase):
+    id: int
+    class Config: orm_mode = True
+
+class PublicCTFSetting(BaseModel):
+    event_title: str
+    ui_theme: str
+    event_start_time: Optional[datetime] = None
+    event_end_time: Optional[datetime] = None
+    class Config: orm_mode = True
+
+# Update forward references
 Team.update_forward_refs()
 User.update_forward_refs()
