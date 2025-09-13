@@ -32,9 +32,8 @@ export const useChallengesStore = defineStore('challenges', () => {
     const authStore = useAuthStore();
     try {
       const response = await apiClient.post(`/challenges/${challengeId}/submit`, { flag });
-      // On success, refresh the user's profile to get updated score and badges
       await authStore.refreshUserProfile();
-      await fetchChallenge(challengeId); // Re-fetch challenge to show updated solve status
+      await fetchChallenge(challengeId);
       return response.data;
     } catch (error) {
       console.error('Flag submission failed:', error);
