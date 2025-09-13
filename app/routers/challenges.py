@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-from .. import auth, crud, models, schemas
+from .. import auth, crud, models, schemas, security
 from ..database import get_db
 
 router = APIRouter()
@@ -75,7 +75,15 @@ def submit_flag(
             detail="Incorrect flag."
         )
 
+    # Correct flag submission
     crud.create_solve(db=db, user=current_user, challenge=challenge)
     crud.update_user_score(db=db, user=current_user, points=challenge.points)
+
+    # First Blood badge logic
+    solve_count = crud.get_solve_count_for_challenge(db, challenge_id=challenge_id)
+    if solve_count == 1:
+        first_blood_badge = crud.get_badge_by_name(db, name="First Blood")
+        if first_blood_badge:
+            crud.award_badge_to_user(db=db, user=current_user, badge=first_blood_badge)
 
     return {"message": "Correct flag!"}
