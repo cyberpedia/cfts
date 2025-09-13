@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import List, Optional, Any
 from datetime import datetime
 
@@ -18,6 +18,10 @@ class CTFSettingBase(BaseModel):
     allow_teams: bool; scoring_mode: str
 class BadgeBase(BaseModel): name: str; description: str; icon_url: Optional[str] = None
 class NotificationBase(BaseModel): title: str; body: str
+class DynamicChallengeInstanceBase(BaseModel):
+    ip_address: str
+    port: int
+    expires_at: datetime
 
 # Create & Update Schemas
 class TagCreate(TagBase): pass
@@ -31,11 +35,15 @@ class CTFSettingUpdate(BaseModel):
     allow_registrations: Optional[bool] = None; allow_teams: Optional[bool] = None
     scoring_mode: Optional[str] = None
 class BadgeCreate(BadgeBase): pass
+class DynamicChallengeInstanceCreate(DynamicChallengeInstanceBase):
+    user_id: int
+    challenge_id: int
+    container_id: str
 
 # Response Schemas
 class Badge(BadgeBase): id: int; class Config: orm_mode = True
 class UserBadge(BaseModel): awarded_at: datetime; badge: Badge; class Config: orm_mode = True
-class _User(BaseModel): id: int; username: str; email: str; score: int; is_staff: bool; is_active: bool; team_id: Optional[int] = None; class Config: orm_mode = True
+class _User(BaseModel): id: int; username: str; score: int; class Config: orm_mode = True
 class _Team(BaseModel): id: int; name: str; class Config: orm_mode = True
 class Tag(TagBase): id: int; class Config: orm_mode = True
 class Solve(SolveBase): id: int; created_at: datetime; user: _User; team: Optional[_Team] = None; class Config: orm_mode = True
@@ -47,18 +55,12 @@ class LeaderboardEntry(BaseModel): rank: int; team_id: int; team_name: str; tota
 class CTFSetting(CTFSettingBase): id: int; class Config: orm_mode = True
 class PublicCTFSetting(BaseModel): event_title: str; ui_theme: str; event_start_time: Optional[datetime] = None; event_end_time: Optional[datetime] = None; class Config: orm_mode = True
 class Notification(NotificationBase): id: int; user_id: int; is_read: bool; created_at: datetime; class Config: orm_mode = True
-
-class _AuditLogUser(BaseModel):
+class _AuditLogUser(BaseModel): id: int; username: str; class Config: orm_mode = True
+class AuditLog(BaseModel): id: int; user: Optional[_AuditLogUser] = None; action: str; details: Optional[Any] = None; timestamp: datetime; class Config: orm_mode = True
+class DynamicChallengeInstance(DynamicChallengeInstanceBase):
     id: int
-    username: str
-    class Config: orm_mode = True
-
-class AuditLog(BaseModel):
-    id: int
-    user: Optional[_AuditLogUser] = None
-    action: str
-    details: Optional[Any] = None
-    timestamp: datetime
+    user_id: int
+    challenge_id: int
     class Config: orm_mode = True
 
 # Update forward references
