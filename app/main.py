@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import users, token, challenges, teams, leaderboard, settings, admin
+from app.routers import users, token, challenges, teams, leaderboard, settings, admin, notifications
 
 app = FastAPI()
 
@@ -25,6 +25,7 @@ app.include_router(teams.router, prefix="/teams", tags=["teams"])
 app.include_router(leaderboard.router, prefix="/leaderboard", tags=["leaderboard"])
 app.include_router(settings.router, tags=["settings"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
+app.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 
 
 @app.get("/")
