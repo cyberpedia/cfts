@@ -5,6 +5,7 @@ import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import ChallengesView from '../views/ChallengesView.vue'
+import ChallengeDetailView from '../views/ChallengeDetailView.vue'
 import LeaderboardView from '../views/LeaderboardView.vue'
 import TeamsView from '../views/TeamsView.vue'
 
@@ -35,6 +36,13 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/challenges/:id',
+      name: 'challenge-detail',
+      component: ChallengeDetailView,
+      props: true, // Pass route params as props to the component
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/leaderboard',
       name: 'leaderboard',
       component: LeaderboardView,
@@ -54,13 +62,10 @@ router.beforeEach((to, from, next) => {
   const isAuthenticated = !!authStore.accessToken;
 
   if (to.meta.requiresAuth && !isAuthenticated) {
-    // Redirect unauthenticated users to the login page
     next({ name: 'login' });
   } else if (to.meta.guestOnly && isAuthenticated) {
-    // Redirect authenticated users away from login/register pages
     next({ name: 'home' });
   } else {
-    // Allow navigation
     next();
   }
 });
