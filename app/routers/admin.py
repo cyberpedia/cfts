@@ -20,19 +20,28 @@ def update_settings(
     db: Session = Depends(get_db),
     current_admin: models.User = Depends(auth.get_current_admin_user)
 ):
+    crud.create_audit_log(
+        db=db,
+        action="admin_update_settings",
+        user_id=current_admin.id,
+        details={"changes": settings_data.dict(exclude_unset=True)}
+    )
     return crud.update_settings(db, settings_data)
 
-# Badge Management
 @router.post("/badges/", response_model=schemas.Badge, status_code=status.HTTP_201_CREATED)
 def create_badge(
-    badge: schemas.BadgeCreate,
-    db: Session = Depends(get_db),
+    badge: schemas.BadgeCreate, db: Session = Depends(get_db),
     current_admin: models.User = Depends(auth.get_current_admin_user)
 ):
     db_badge = crud.get_badge_by_name(db, name=badge.name)
     if db_badge:
         raise HTTPException(status_code=400, detail="Badge with this name already exists")
-    return crud.create_badge(db=db, badge=badge)
+    new_badge = crud.create_badge(db=db, badge=badge)
+    crud.create_audit_log(
+        db=db, action="admin_create_badge", user_id=current_admin.id,
+        details={"badge_id": new_badge.id, "name": new_badge.name}
+    )
+    return new_badge
 
 @router.get("/badges/", response_model=List[schemas.Badge])
 def read_badges(
@@ -41,27 +50,17 @@ def read_badges(
 ):
     return crud.get_badges(db, skip=skip, limit=limit)
 
-@router.get("/badges/{badge_id}", response_model=schemas.Badge)
-def read_badge(
-    badge_id: int, db: Session = Depends(get_db),
-    current_admin: models.User = Depends(auth.get_current_admin_user)
-):
-    db_badge = crud.get_badge(db, badge_id=badge_id)
-    if db_badge is None:
-        raise HTTPException(status_code=404, detail="Badge not found")
-    return db_badge
-
 @router.put("/badges/{badge_id}", response_model=schemas.Badge)
 def update_badge(
     badge_id: int, badge: schemas.BadgeCreate, db: Session = Depends(get_db),
     current_admin: models.User = Depends(auth.get_current_admin_user)
 ):
-    db_badge = crud.get_badge(db, badge_id=badge_id)
-    if db_badge is None:
+    if not crud.get_badge(db, badge_id=badge_id):
         raise HTTPException(status_code=404, detail="Badge not found")
-    existing_badge_with_name = crud.get_badge_by_name(db, name=badge.name)
-    if existing_badge_with_name and existing_badge_with_name.id != badge_id:
-        raise HTTPException(status_code=400, detail="Another badge with this name already exists")
+    crud.create_audit_log(
+        db=db, action="admin_update_badge", user_id=current_admin.id,
+        details={"badge_id": badge_id, "changes": badge.dict()}
+    )
     return crud.update_badge(db=db, badge_id=badge_id, badge_data=badge)
 
 @router.delete("/badges/{badge_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -69,11 +68,16 @@ def delete_badge(
     badge_id: int, db: Session = Depends(get_db),
     current_admin: models.User = Depends(auth.get_current_admin_user)
 ):
-    if not crud.delete_badge(db, badge_id=badge_id):
+    db_badge = crud.get_badge(db, badge_id=badge_id)
+    if not db_badge:
         raise HTTPException(status_code=404, detail="Badge not found")
+    crud.create_audit_log(
+        db=db, action="admin_delete_badge", user_id=current_admin.id,
+        details={"badge_id": badge_id, "badge_name": db_badge.name}
+    )
+    crud.delete_badge(db, badge_id=badge_id)
     return
 
-# User Verification
 @router.get("/users/pending", response_model=List[schemas.User])
 def get_pending_verification_users(
     skip: int = 0, limit: int = 100, db: Session = Depends(get_db),
@@ -91,13 +95,22 @@ def approve_user_registration(
         raise HTTPException(status_code=404, detail="User not found")
     if db_user.is_active:
         raise HTTPException(status_code=400, detail="User is already active")
-    
-    # A similar notification pattern would be used for write-up approvals.
-    crud.create_notification(
-        db=db,
-        user_id=db_user.id,
-        title="Account Approved",
-        body="Your account has been manually approved by an administrator. You can now log in."
+    crud.create_audit_log(
+        db=db, action="admin_approve_user", user_id=current_admin.id,
+        details={"approved_user_id": user_id, "approved_username": db_user.username}
     )
-        
+    crud.create_notification(
+        db=db, user_id=db_user.id, title="Account Approved",
+        body="Your account has been manually approved by an administrator."
+    )
     return crud.approve_user(db=db, user=db_user)
+
+@router.get("/logs/", response_model=List[schemas.AuditLog])
+def get_audit_logs(
+    skip: int = 0, limit: int = 100, db: Session = Depends(get_db),
+    current_admin: models.User = Depends(auth.get_current_admin_user)
+):
+    """
+    Retrieve audit logs (Admin only).
+    """
+    return crud.get_audit_logs(db, skip=skip, limit=limit)
