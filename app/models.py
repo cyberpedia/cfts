@@ -21,7 +21,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=True)  # Made nullable for OAuth
+    hashed_password = Column(String, nullable=True)
     score = Column(Integer, default=0, nullable=False)
     is_staff = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=False, nullable=False)
@@ -32,6 +32,7 @@ class User(Base):
     badges = relationship("UserBadge", back_populates="user")
     notifications = relationship("Notification", back_populates="user")
     audit_logs = relationship("AuditLog", back_populates="user")
+    dynamic_instances = relationship("DynamicChallengeInstance", back_populates="user")
 
 class Team(Base):
     __tablename__ = "teams"
@@ -57,6 +58,7 @@ class Challenge(Base):
         primaryjoin=id == challenge_dependencies.c.challenge_id,
         secondaryjoin=id == challenge_dependencies.c.dependency_id,
         backref="dependent_challenges")
+    dynamic_instances = relationship("DynamicChallengeInstance", back_populates="challenge")
 
 class Tag(Base):
     __tablename__ = "tags"
@@ -123,3 +125,15 @@ class AuditLog(Base):
     details = Column(JSON, nullable=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     user = relationship("User", back_populates="audit_logs")
+
+class DynamicChallengeInstance(Base):
+    __tablename__ = "dynamic_challenge_instances"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    challenge_id = Column(Integer, ForeignKey("challenges.id"), nullable=False)
+    container_id = Column(String, nullable=False)
+    ip_address = Column(String, nullable=False)
+    port = Column(Integer, nullable=False)
+    expires_at = Column(DateTime(timezone=False), nullable=False) # Use timezone-naive for simplicity
+    user = relationship("User", back_populates="dynamic_instances")
+    challenge = relationship("Challenge", back_populates="dynamic_instances")
