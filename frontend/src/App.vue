@@ -1,17 +1,21 @@
 <template>
-  <div id="app">
-    <router-view />
+  <div class="flex flex-col min-h-screen bg-gray-900 text-gray-200">
+    <NavBar />
+    <main class="flex-grow container mx-auto px-4 py-8">
+      <router-view />
+    </main>
+    <Footer />
   </div>
 </template>
 
 <script setup>
-// No script logic needed for the root component yet.
+import NavBar from './components/NavBar.vue';
+import Footer from './components/Footer.vue';
 </script>
 
 <style>
-/* You can add global, non-Tailwind styles here if needed */
+/* Global styles remain the same */
 body {
-  background-color: #1a202c;
-  color: #cbd5e0;
+  background-color: #1a202c; /* Equivalent to bg-gray-900 */
 }
 </style>
