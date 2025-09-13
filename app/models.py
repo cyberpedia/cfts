@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Boolean, Column, ForeignKey, Integer, String, DateTime, Table,
-    UniqueConstraint, CheckConstraint
+    UniqueConstraint, CheckConstraint, JSON
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -31,6 +31,7 @@ class User(Base):
     solves = relationship("Solve", back_populates="user")
     badges = relationship("UserBadge", back_populates="user")
     notifications = relationship("Notification", back_populates="user")
+    audit_logs = relationship("AuditLog", back_populates="user")
 
 class Team(Base):
     __tablename__ = "teams"
@@ -113,3 +114,12 @@ class Notification(Base):
     is_read = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     user = relationship("User", back_populates="notifications")
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    action = Column(String, nullable=False, index=True)
+    details = Column(JSON, nullable=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    user = relationship("User", back_populates="audit_logs")
