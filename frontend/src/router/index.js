@@ -22,7 +22,8 @@ import NotificationsView from '../views/NotificationsView.vue'
 import AdminDashboardView from '../views/admin/AdminDashboardView.vue'
 import AdminUserListView from '../views/admin/AdminUserListView.vue'
 import AdminUserEditView from '../views/admin/AdminUserEditView.vue'
-
+import AdminChallengeListView from '../views/admin/AdminChallengeListView.vue'
+import AdminChallengeEditView from '../views/admin/AdminChallengeEditView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -48,8 +49,9 @@ const router = createRouter({
         { path: 'dashboard', name: 'admin-dashboard', component: AdminDashboardView },
         { path: 'users', name: 'admin-users', component: AdminUserListView },
         { path: 'users/:id/edit', name: 'admin-user-edit', component: AdminUserEditView, props: true },
-        // Placeholder routes for future admin pages
-        { path: 'challenges', name: 'admin-challenges', component: { template: '<h1>Admin Challenges</h1>' } },
+        { path: 'challenges', name: 'admin-challenges', component: AdminChallengeListView },
+        { path: 'challenges/new', name: 'admin-challenge-new', component: AdminChallengeEditView },
+        { path: 'challenges/:id/edit', name: 'admin-challenge-edit', component: AdminChallengeEditView, props: true },
         { path: 'settings', name: 'admin-settings', component: { template: '<h1>Admin Settings</h1>' } },
       ]
     }
@@ -64,7 +66,6 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth && !isAuthenticated) {
     next({ name: 'login', query: { redirect: to.fullPath } });
   } else if (to.meta.requiresAdmin && !isAdmin) {
-    // Redirect non-admins trying to access admin routes
     next({ name: 'home' }); 
   } else if (to.meta.guestOnly && isAuthenticated) {
     next({ name: 'home' });
