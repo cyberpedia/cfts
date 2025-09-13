@@ -8,6 +8,7 @@ class User(BaseModel):
     email: str
     score: int
     is_staff: bool
+    is_active: bool
     team_id: Optional[int] = None
 
     class Config:
