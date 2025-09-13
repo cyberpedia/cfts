@@ -3,28 +3,20 @@ from sqlalchemy import func
 from typing import List, Optional
 from . import models, schemas, security
 from datetime import datetime, timedelta
+import secrets
 
 # ==================================
 # Dynamic Challenge Instance CRUD
 # ==================================
 
 def create_instance(db: Session, user_id: int, challenge_id: int, container_id: str, ip_address: str, port: int, expires_at: datetime) -> models.DynamicChallengeInstance:
-    """Creates a new dynamic challenge instance record."""
-    db_instance = models.DynamicChallengeInstance(
-        user_id=user_id,
-        challenge_id=challenge_id,
-        container_id=container_id,
-        ip_address=ip_address,
-        port=port,
-        expires_at=expires_at
-    )
+    db_instance = models.DynamicChallengeInstance(user_id=user_id, challenge_id=challenge_id, container_id=container_id, ip_address=ip_address, port=port, expires_at=expires_at)
     db.add(db_instance)
     db.commit()
     db.refresh(db_instance)
     return db_instance
 
 def get_active_instance_for_user(db: Session, user_id: int, challenge_id: int) -> Optional[models.DynamicChallengeInstance]:
-    """Retrieves an active (not expired) instance for a user and challenge."""
     return db.query(models.DynamicChallengeInstance).filter(
         models.DynamicChallengeInstance.user_id == user_id,
         models.DynamicChallengeInstance.challenge_id == challenge_id,
@@ -32,11 +24,9 @@ def get_active_instance_for_user(db: Session, user_id: int, challenge_id: int) -
     ).first()
 
 def get_instance_by_id(db: Session, instance_id: int) -> Optional[models.DynamicChallengeInstance]:
-    """Retrieves an instance by its primary key."""
     return db.query(models.DynamicChallengeInstance).filter(models.DynamicChallengeInstance.id == instance_id).first()
 
 def delete_instance(db: Session, instance_id: int):
-    """Deletes an instance record from the database."""
     db_instance = get_instance_by_id(db, instance_id)
     if db_instance:
         db.delete(db_instance)
@@ -82,11 +72,36 @@ def update_settings(db: Session, settings_data: schemas.CTFSettingUpdate) -> mod
 def get_user(db: Session, user_id: int) -> Optional[models.User]:
     return db.query(models.User).filter(models.User.id == user_id).first()
 
+def get_all_users(db: Session) -> List[models.User]:
+    """Retrieves all users from the database."""
+    return db.query(models.User).all()
+
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
 def get_user_by_username(db: Session, username: str):
     return db.query(models.User).filter(models.User.username == username).first()
+
+def get_user_by_verification_token(db: Session, token: str):
+    return db.query(models.User).filter(models.User.verification_token == token).first()
+
+def get_pending_users(db: Session, skip: int = 0, limit: int = 100) -> List[models.User]:
+    return db.query(models.User).filter(models.User.is_active == False).offset(skip).limit(limit).all()
+
+def create_user(db: Session, user: schemas.UserCreate):
+    hashed_password = security.get_password_hash(user.password)
+    verification_token = security.generate_verification_token()
+    db_user = models.User(
+        username=user.username,
+        email=user.email,
+        hashed_password=hashed_password,
+        verification_token=verification_token,
+        is_active=False
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
 
 def get_or_create_oauth_user(db: Session, user_info: dict) -> models.User:
     user = get_user_by_email(db, email=user_info['email'])
@@ -102,16 +117,23 @@ def get_or_create_oauth_user(db: Session, user_info: dict) -> models.User:
     create_audit_log(db, action="user_register_oauth", user_id=db_user.id, details={"provider": "google"})
     return db_user
 
-# Other functions... (omitted for brevity, no changes were made to them)
-def get_user_by_verification_token(db: Session, token: str): return db.query(models.User).filter(models.User.verification_token == token).first()
-def get_pending_users(db: Session, skip: int = 0, limit: int = 100) -> List[models.User]: return db.query(models.User).filter(models.User.is_active == False).offset(skip).limit(limit).all()
-def create_user(db: Session, user: schemas.UserCreate):
-    hashed_password = security.get_password_hash(user.password)
-    verification_token = security.generate_verification_token()
-    db_user = models.User(username=user.username, email=user.email, hashed_password=hashed_password, verification_token=verification_token, is_active=False)
-    db.add(db_user); db.commit(); db.refresh(db_user); return db_user
-def update_user_score(db: Session, user: models.User, points: int): user.score += points; db.commit(); db.refresh(user); return user
-def approve_user(db: Session, user: models.User) -> models.User: user.is_active = True; user.verification_token = None; db.commit(); db.refresh(user); return user
+def update_user_score(db: Session, user: models.User, points: int):
+    user.score += points
+    db.commit()
+    db.refresh(user)
+    return user
+    
+def approve_user(db: Session, user: models.User) -> models.User:
+    user.is_active = True
+    user.verification_token = None
+    db.commit()
+    db.refresh(user)
+    return user
+
+# ==================================
+# Team CRUD Functions
+# ==================================
+
 def get_team(db: Session, team_id: int): return db.query(models.Team).filter(models.Team.id == team_id).first()
 def get_team_by_name(db: Session, name: str): return db.query(models.Team).filter(models.Team.name == name).first()
 def get_teams(db: Session, skip: int = 0, limit: int = 100): return db.query(models.Team).offset(skip).limit(limit).all()
@@ -120,6 +142,11 @@ def create_team(db: Session, team: schemas.TeamCreate, user: models.User):
     user.team_id = db_team.id; db.commit(); db.refresh(user); return db_team
 def add_user_to_team(db: Session, user: models.User, team: models.Team): user.team_id = team.id; db.commit(); db.refresh(user); return user
 def remove_user_from_team(db: Session, user: models.User): user.team_id = None; db.commit(); db.refresh(user); return user
+
+# ==================================
+# Challenge & Solve CRUD Functions
+# ==================================
+
 def has_user_solved_challenge(db: Session, user_id: int, challenge_id: int) -> bool: return db.query(models.Solve).filter(models.Solve.user_id == user_id, models.Solve.challenge_id == challenge_id).first() is not None
 def get_solve_count_for_challenge(db: Session, challenge_id: int) -> int: return db.query(models.Solve).filter(models.Solve.challenge_id == challenge_id).count()
 def get_user_solved_challenge_ids(db: Session, user_id: int) -> set: return {s.challenge_id for s in db.query(models.Solve.challenge_id).filter(models.Solve.user_id == user_id).all()}
@@ -136,6 +163,11 @@ def get_challenge(db: Session, challenge_id: int, user_id: int) -> Optional[mode
     return challenge
 def create_solve(db: Session, user: models.User, challenge: models.Challenge) -> models.Solve:
     db_solve = models.Solve(user_id=user.id, challenge_id=challenge.id, team_id=user.team_id); db.add(db_solve); db.commit(); db.refresh(db_solve); return db_solve
+
+# ==================================
+# Badge & Notification CRUD
+# ==================================
+
 def get_badge(db: Session, badge_id: int) -> Optional[models.Badge]: return db.query(models.Badge).filter(models.Badge.id == badge_id).first()
 def get_badge_by_name(db: Session, name: str) -> Optional[models.Badge]: return db.query(models.Badge).filter(models.Badge.name == name).first()
 def get_badges(db: Session, skip: int = 0, limit: int = 100) -> List[models.Badge]: return db.query(models.Badge).offset(skip).limit(limit).all()
@@ -162,4 +194,9 @@ def mark_notification_as_read(db: Session, notification_id: int, user_id: int) -
     db_notification = get_notification(db, notification_id, user_id)
     if db_notification: db_notification.is_read = True; db.commit(); db.refresh(db_notification)
     return db_notification
+
+# ==================================
+# Leaderboard CRUD
+# ==================================
+
 def get_leaderboard(db: Session): return db.query(models.Team.id, models.Team.name, func.sum(models.User.score).label("total_score"), func.max(models.Solve.created_at).label("last_submission")).join(models.User, models.Team.id == models.User.team_id).outerjoin(models.Solve, models.Team.id == models.Solve.team_id).group_by(models.Team.id).order_by(func.sum(models.User.score).desc(), func.max(models.Solve.created_at).asc()).all()
