@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # Email settings for fastapi-mail
+    # Email settings
     MAIL_USERNAME: str = os.environ.get("MAIL_USERNAME", "username")
     MAIL_PASSWORD: str = os.environ.get("MAIL_PASSWORD", "password")
     MAIL_FROM: str = os.environ.get("MAIL_FROM", "noreply@example.com")
@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     MAIL_SERVER: str = os.environ.get("MAIL_SERVER", "smtp.example.com")
     MAIL_STARTTLS: bool = os.environ.get("MAIL_STARTTLS", "True").lower() in ("true", "1", "t")
     MAIL_SSL_TLS: bool = os.environ.get("MAIL_SSL_TLS", "False").lower() in ("true", "1", "t")
+
+    # OAuth settings for Google
+    GOOGLE_CLIENT_ID: str = os.environ.get("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET: str = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 
     class Config:
         env_file = ".env"
