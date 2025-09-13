@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from typing import List
 from . import models, schemas, security
 
@@ -31,10 +32,43 @@ def create_user(db: Session, user: schemas.UserCreate):
     return db_user
 
 def update_user_score(db: Session, user: models.User, points: int):
-    """
-    Updates a user's score by adding the given points.
-    """
     user.score += points
+    db.commit()
+    db.refresh(user)
+    return user
+
+# ==================================
+# Team CRUD Functions
+# ==================================
+
+def get_team(db: Session, team_id: int):
+    return db.query(models.Team).filter(models.Team.id == team_id).first()
+
+def get_team_by_name(db: Session, name: str):
+    return db.query(models.Team).filter(models.Team.name == name).first()
+
+def get_teams(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Team).offset(skip).limit(limit).all()
+
+def create_team(db: Session, team: schemas.TeamCreate, user: models.User):
+    db_team = models.Team(name=team.name)
+    db.add(db_team)
+    db.commit()
+    db.refresh(db_team)
+    # Add the creating user to the team
+    user.team_id = db_team.id
+    db.commit()
+    db.refresh(user)
+    return db_team
+
+def add_user_to_team(db: Session, user: models.User, team: models.Team):
+    user.team_id = team.id
+    db.commit()
+    db.refresh(user)
+    return user
+
+def remove_user_from_team(db: Session, user: models.User):
+    user.team_id = None
     db.commit()
     db.refresh(user)
     return user
@@ -44,25 +78,16 @@ def update_user_score(db: Session, user: models.User, points: int):
 # ==================================
 
 def has_user_solved_challenge(db: Session, user_id: int, challenge_id: int) -> bool:
-    """
-    Checks if a user has already solved a specific challenge.
-    """
     return db.query(models.Solve).filter(
         models.Solve.user_id == user_id,
         models.Solve.challenge_id == challenge_id
     ).first() is not None
 
 def get_user_solved_challenge_ids(db: Session, user_id: int) -> set:
-    """
-    Gets a set of challenge IDs that the user has solved.
-    """
     solved_challenges = db.query(models.Solve.challenge_id).filter(models.Solve.user_id == user_id).all()
     return {solve.challenge_id for solve in solved_challenges}
 
 def get_visible_challenges(db: Session, user_id: int) -> List[models.Challenge]:
-    """
-    Retrieves all visible challenges and computes their locked status for a user.
-    """
     challenges = db.query(models.Challenge).filter(models.Challenge.is_visible == True).options(joinedload(models.Challenge.dependencies)).all()
     solved_ids = get_user_solved_challenge_ids(db, user_id)
 
@@ -73,9 +98,6 @@ def get_visible_challenges(db: Session, user_id: int) -> List[models.Challenge]:
     return challenges
 
 def get_challenge(db: Session, challenge_id: int, user_id: int) -> models.Challenge | None:
-    """
-    Retrieves a single challenge and computes its locked status for a user.
-    """
     challenge = db.query(models.Challenge).filter(models.Challenge.id == challenge_id).options(joinedload(models.Challenge.dependencies)).first()
     if not challenge:
         return None
@@ -87,9 +109,6 @@ def get_challenge(db: Session, challenge_id: int, user_id: int) -> models.Challe
     return challenge
 
 def create_solve(db: Session, user: models.User, challenge: models.Challenge) -> models.Solve:
-    """
-    Creates a new solve record for a user and a challenge.
-    """
     db_solve = models.Solve(
         user_id=user.id,
         challenge_id=challenge.id,
@@ -99,3 +118,28 @@ def create_solve(db: Session, user: models.User, challenge: models.Challenge) ->
     db.commit()
     db.refresh(db_solve)
     return db_solve
+
+# ==================================
+# Leaderboard CRUD Functions
+# ==================================
+
+def get_leaderboard(db: Session):
+    """
+    Retrieves the leaderboard data, ranking teams by total score and last submission time.
+    """
+    leaderboard_query = (
+        db.query(
+            models.Team.id,
+            models.Team.name,
+            func.sum(models.User.score).label("total_score"),
+            func.max(models.Solve.created_at).label("last_submission"),
+        )
+        .join(models.User, models.Team.id == models.User.team_id)
+        .outerjoin(models.Solve, models.Team.id == models.Solve.team_id)
+        .group_by(models.Team.id)
+        .order_by(
+            func.sum(models.User.score).desc(),
+            func.max(models.Solve.created_at).asc(),
+        )
+    )
+    return leaderboard_query.all()
