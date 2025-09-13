@@ -22,6 +22,9 @@ class DynamicChallengeInstanceBase(BaseModel):
     ip_address: str
     port: int
     expires_at: datetime
+class AdminMassEmail(BaseModel):
+    subject: str
+    body: str
 
 # Create & Update Schemas
 class TagCreate(TagBase): pass
