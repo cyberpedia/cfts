@@ -2,7 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.routers import users, token, challenges, teams, leaderboard, settings, admin, notifications, auth as oauth_auth
+from app.routers import (
+    users, token, challenges, teams, leaderboard, settings, 
+    admin, notifications, auth as oauth_auth, dynamic_challenges
+)
 from .config import settings as app_settings
 
 app = FastAPI()
@@ -27,6 +30,7 @@ app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(token.router, tags=["authentication"])
 app.include_router(oauth_auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(challenges.router, prefix="/challenges", tags=["challenges"])
+app.include_router(dynamic_challenges.router, prefix="/dynamic-challenges", tags=["dynamic_challenges"])
 app.include_router(teams.router, prefix="/teams", tags=["teams"])
 app.include_router(leaderboard.router, prefix="/leaderboard", tags=["leaderboard"])
 app.include_router(settings.router, tags=["settings"])
