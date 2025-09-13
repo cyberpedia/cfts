@@ -31,13 +31,6 @@ def generate_verification_token() -> str:
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """
     Creates a JWT access token.
-
-    Args:
-        data: The data to encode in the token (e.g., user identifier).
-        expires_delta: The expiration time for the token.
-
-    Returns:
-        The encoded JWT access token.
     """
     to_encode = data.copy()
     if expires_delta:
@@ -48,3 +41,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
+
+def compare_flags(submitted_flag: str, correct_flag: str) -> bool:
+    """
+    Performs a constant-time comparison of two strings to prevent timing attacks.
+    """
+    return secrets.compare_digest(submitted_flag, correct_flag)
