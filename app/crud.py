@@ -1,8 +1,26 @@
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, JSON
 from typing import List, Optional
 from . import models, schemas, security
 from datetime import datetime
+
+# ==================================
+# Audit Log CRUD Functions
+# ==================================
+
+def create_audit_log(db: Session, action: str, user_id: Optional[int] = None, details: Optional[dict] = None):
+    """Creates an audit log entry."""
+    db_log = models.AuditLog(
+        user_id=user_id,
+        action=action,
+        details=details
+    )
+    db.add(db_log)
+    db.commit()
+
+def get_audit_logs(db: Session, skip: int = 0, limit: int = 100) -> List[models.AuditLog]:
+    """Retrieves audit logs with pagination, newest first."""
+    return db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc()).offset(skip).limit(limit).all()
 
 # ==================================
 # Settings CRUD Functions
@@ -11,13 +29,7 @@ from datetime import datetime
 def get_settings(db: Session) -> models.CTFSetting:
     db_settings = db.query(models.CTFSetting).first()
     if not db_settings:
-        db_settings = models.CTFSetting(
-            event_title="My CTF",
-            ui_theme="dark",
-            allow_registrations=True,
-            allow_teams=True,
-            scoring_mode="static"
-        )
+        db_settings = models.CTFSetting()
         db.add(db_settings)
         db.commit()
         db.refresh(db_settings)
@@ -141,45 +153,18 @@ def get_visible_challenges(db: Session, user_id: int) -> List[models.Challenge]:
 
 def get_challenge(db: Session, challenge_id: int, user_id: int) -> Optional[models.Challenge]:
     challenge = db.query(models.Challenge).filter(models.Challenge.id == challenge_id).options(joinedload(models.Challenge.dependencies)).first()
-    if not challenge:
-        return None
+    if not challenge: return None
     solved_ids = get_user_solved_challenge_ids(db, user_id)
     dependency_ids = {dep.id for dep in challenge.dependencies}
     challenge.is_locked = not dependency_ids.issubset(solved_ids)
     return challenge
 
 def create_solve(db: Session, user: models.User, challenge: models.Challenge) -> models.Solve:
-    db_solve = models.Solve(
-        user_id=user.id,
-        challenge_id=challenge.id,
-        team_id=user.team_id
-    )
+    db_solve = models.Solve(user_id=user.id, challenge_id=challenge.id, team_id=user.team_id)
     db.add(db_solve)
     db.commit()
     db.refresh(db_solve)
     return db_solve
-
-# ==================================
-# Leaderboard CRUD Functions
-# ==================================
-
-def get_leaderboard(db: Session):
-    leaderboard_query = (
-        db.query(
-            models.Team.id,
-            models.Team.name,
-            func.sum(models.User.score).label("total_score"),
-            func.max(models.Solve.created_at).label("last_submission"),
-        )
-        .join(models.User, models.Team.id == models.User.team_id)
-        .outerjoin(models.Solve, models.Team.id == models.Solve.team_id)
-        .group_by(models.Team.id)
-        .order_by(
-            func.sum(models.User.score).desc(),
-            func.max(models.Solve.created_at).asc(),
-        )
-    )
-    return leaderboard_query.all()
 
 # ==================================
 # Badge CRUD Functions
@@ -219,14 +204,8 @@ def delete_badge(db: Session, badge_id: int) -> bool:
     return False
 
 def award_badge_to_user(db: Session, user: models.User, badge: models.Badge) -> Optional[models.UserBadge]:
-    existing_award = db.query(models.UserBadge).filter(
-        models.UserBadge.user_id == user.id,
-        models.UserBadge.badge_id == badge.id
-    ).first()
-
-    if existing_award:
-        return None
-
+    existing_award = db.query(models.UserBadge).filter(models.UserBadge.user_id == user.id, models.UserBadge.badge_id == badge.id).first()
+    if existing_award: return None
     db_user_badge = models.UserBadge(user_id=user.id, badge_id=badge.id)
     db.add(db_user_badge)
     db.commit()
@@ -238,7 +217,6 @@ def award_badge_to_user(db: Session, user: models.User, badge: models.Badge) -> 
 # ==================================
 
 def create_notification(db: Session, user_id: int, title: str, body: str) -> models.Notification:
-    """Creates a notification for a specific user."""
     db_notification = models.Notification(user_id=user_id, title=title, body=body)
     db.add(db_notification)
     db.commit()
@@ -246,21 +224,31 @@ def create_notification(db: Session, user_id: int, title: str, body: str) -> mod
     return db_notification
 
 def get_notifications_for_user(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.Notification]:
-    """Retrieves all notifications for a given user, newest first."""
     return db.query(models.Notification).filter(models.Notification.user_id == user_id).order_by(models.Notification.created_at.desc()).offset(skip).limit(limit).all()
 
 def get_notification(db: Session, notification_id: int, user_id: int) -> Optional[models.Notification]:
-    """Retrieves a single notification, ensuring it belongs to the specified user."""
-    return db.query(models.Notification).filter(
-        models.Notification.id == notification_id,
-        models.Notification.user_id == user_id
-    ).first()
+    return db.query(models.Notification).filter(models.Notification.id == notification_id, models.Notification.user_id == user_id).first()
 
 def mark_notification_as_read(db: Session, notification_id: int, user_id: int) -> Optional[models.Notification]:
-    """Marks a user's notification as read."""
     db_notification = get_notification(db, notification_id=notification_id, user_id=user_id)
     if db_notification:
         db_notification.is_read = True
         db.commit()
         db.refresh(db_notification)
     return db_notification
+
+# ==================================
+# Leaderboard CRUD Functions
+# ==================================
+
+def get_leaderboard(db: Session):
+    return db.query(
+        models.Team.id,
+        models.Team.name,
+        func.sum(models.User.score).label("total_score"),
+        func.max(models.Solve.created_at).label("last_submission"),
+    ).join(models.User, models.Team.id == models.User.team_id)\
+     .outerjoin(models.Solve, models.Team.id == models.Solve.team_id)\
+     .group_by(models.Team.id)\
+     .order_by(func.sum(models.User.score).desc(), func.max(models.Solve.created_at).asc())\
+     .all()
