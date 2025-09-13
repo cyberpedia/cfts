@@ -13,9 +13,6 @@ def read_challenges(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    """
-    Retrieve all visible challenges.
-    """
     challenges = crud.get_visible_challenges(db, user_id=current_user.id)
     return challenges
 
@@ -25,9 +22,6 @@ def read_challenge_detail(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    """
-    Retrieve details for a single challenge.
-    """
     challenge = crud.get_challenge(db, challenge_id=challenge_id, user_id=current_user.id)
     if challenge is None or not challenge.is_visible:
         raise HTTPException(status_code=404, detail="Challenge not found")
@@ -40,9 +34,6 @@ def submit_flag(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    """
-    Submit a flag for a challenge.
-    """
     settings = crud.get_settings(db)
     now = datetime.now(timezone.utc)
 
@@ -84,6 +75,13 @@ def submit_flag(
     if solve_count == 1:
         first_blood_badge = crud.get_badge_by_name(db, name="First Blood")
         if first_blood_badge:
-            crud.award_badge_to_user(db=db, user=current_user, badge=first_blood_badge)
+            if crud.award_badge_to_user(db=db, user=current_user, badge=first_blood_badge):
+                # Send notification only if the badge was newly awarded
+                crud.create_notification(
+                    db=db,
+                    user_id=current_user.id,
+                    title="New Badge Earned!",
+                    body=f"Congratulations! You earned the '{first_blood_badge.name}' badge for being the first to solve '{challenge.name}'."
+                )
 
     return {"message": "Correct flag!"}
