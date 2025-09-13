@@ -1,10 +1,11 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
 from .. import auth, crud, models, schemas, security
 from ..database import get_db
+from ..limiter import limiter
 
 router = APIRouter()
 
@@ -26,8 +27,12 @@ def read_challenge_detail(
     return challenge
 
 @router.post("/{challenge_id}/submit")
+@limiter.limit("20/minute")
 def submit_flag(
-    challenge_id: int, submission: schemas.FlagSubmission, db: Session = Depends(get_db),
+    request: Request,
+    challenge_id: int, 
+    submission: schemas.FlagSubmission, 
+    db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     settings = crud.get_settings(db)
@@ -47,16 +52,10 @@ def submit_flag(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You have already solved this challenge.")
 
     if not security.compare_flags(submission.flag, challenge.flag):
-        crud.create_audit_log(
-            db=db, action="flag_submit_incorrect", user_id=current_user.id,
-            details={"challenge_id": challenge.id, "challenge_name": challenge.name, "submission": submission.flag}
-        )
+        crud.create_audit_log(db=db, action="flag_submit_incorrect", user_id=current_user.id, details={"challenge_id": challenge.id, "submission": submission.flag})
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect flag.")
 
-    crud.create_audit_log(
-        db=db, action="flag_submit_correct", user_id=current_user.id,
-        details={"challenge_id": challenge.id, "challenge_name": challenge.name, "submission": submission.flag}
-    )
+    crud.create_audit_log(db=db, action="flag_submit_correct", user_id=current_user.id, details={"challenge_id": challenge.id, "submission": submission.flag})
     crud.create_solve(db=db, user=current_user, challenge=challenge)
     crud.update_user_score(db=db, user=current_user, points=challenge.points)
 
@@ -64,8 +63,5 @@ def submit_flag(
     if solve_count == 1:
         first_blood_badge = crud.get_badge_by_name(db, name="First Blood")
         if first_blood_badge and crud.award_badge_to_user(db=db, user=current_user, badge=first_blood_badge):
-            crud.create_notification(
-                db=db, user_id=current_user.id, title="New Badge Earned!",
-                body=f"Congratulations! You earned the '{first_blood_badge.name}' badge for '{challenge.name}'."
-            )
+            crud.create_notification(db=db, user_id=current_user.id, title="New Badge Earned!", body=f"You earned the '{first_blood_badge.name}' badge for '{challenge.name}'.")
     return {"message": "Correct flag!"}
