@@ -42,6 +42,11 @@ class CTFSettingBase(BaseModel):
     allow_teams: bool
     scoring_mode: str
 
+class BadgeBase(BaseModel):
+    name: str
+    description: str
+    icon_url: Optional[str] = None
+
 # ==================================
 # Create & Update Schemas
 # ==================================
@@ -70,9 +75,21 @@ class CTFSettingUpdate(BaseModel):
     allow_teams: Optional[bool] = None
     scoring_mode: Optional[str] = None
 
+class BadgeCreate(BadgeBase):
+    pass
+
 # ==================================
 # Response Schemas (for API output)
 # ==================================
+
+class Badge(BadgeBase):
+    id: int
+    class Config: orm_mode = True
+
+class UserBadge(BaseModel):
+    awarded_at: datetime
+    badge: Badge
+    class Config: orm_mode = True
 
 class _User(BaseModel):
     id: int
@@ -127,6 +144,7 @@ class User(UserBase):
     is_active: bool
     team_id: Optional[int] = None
     solves: List[Solve] = []
+    badges: List[UserBadge] = []
     class Config: orm_mode = True
 
 class LeaderboardEntry(BaseModel):
