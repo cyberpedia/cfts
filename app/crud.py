@@ -1,7 +1,42 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
-from typing import List
+from typing import List, Optional
 from . import models, schemas, security
+from datetime import datetime
+
+# ==================================
+# Settings CRUD Functions
+# ==================================
+
+def get_settings(db: Session) -> models.CTFSetting:
+    """
+    Retrieves the CTF settings. If no settings exist, creates default ones.
+    """
+    db_settings = db.query(models.CTFSetting).first()
+    if not db_settings:
+        db_settings = models.CTFSetting(
+            event_title="My CTF",
+            ui_theme="dark",
+            allow_registrations=True,
+            allow_teams=True,
+            scoring_mode="static"
+        )
+        db.add(db_settings)
+        db.commit()
+        db.refresh(db_settings)
+    return db_settings
+
+def update_settings(db: Session, settings_data: schemas.CTFSettingUpdate) -> models.CTFSetting:
+    """
+    Updates the CTF settings.
+    """
+    db_settings = get_settings(db)
+    update_data = settings_data.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_settings, key, value)
+    db.commit()
+    db.refresh(db_settings)
+    return db_settings
 
 # ==================================
 # User CRUD Functions
@@ -55,7 +90,6 @@ def create_team(db: Session, team: schemas.TeamCreate, user: models.User):
     db.add(db_team)
     db.commit()
     db.refresh(db_team)
-    # Add the creating user to the team
     user.team_id = db_team.id
     db.commit()
     db.refresh(user)
@@ -97,7 +131,7 @@ def get_visible_challenges(db: Session, user_id: int) -> List[models.Challenge]:
     
     return challenges
 
-def get_challenge(db: Session, challenge_id: int, user_id: int) -> models.Challenge | None:
+def get_challenge(db: Session, challenge_id: int, user_id: int) -> Optional[models.Challenge]:
     challenge = db.query(models.Challenge).filter(models.Challenge.id == challenge_id).options(joinedload(models.Challenge.dependencies)).first()
     if not challenge:
         return None
@@ -124,9 +158,6 @@ def create_solve(db: Session, user: models.User, challenge: models.Challenge) ->
 # ==================================
 
 def get_leaderboard(db: Session):
-    """
-    Retrieves the leaderboard data, ranking teams by total score and last submission time.
-    """
     leaderboard_query = (
         db.query(
             models.Team.id,
