@@ -12,6 +12,8 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     score = Column(Integer, default=0)
     is_staff = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=False)  # For email verification
+    verification_token = Column(String, unique=True, nullable=True)
     
     team_id = Column(Integer, ForeignKey("teams.id"))
     team = relationship("Team", back_populates="members")
