@@ -1,6 +1,10 @@
 import ReconnectingWebSocket from 'reconnecting-websocket';
 
-const WS_URL = 'ws://127.0.0.1:8000/ws/activity';
+// Construct WebSocket URL relative to the current host
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const host = window.location.host;
+const WS_URL = `${protocol}//${host}/ws/activity`;
+
 
 class WebSocketService {
   constructor() {
@@ -37,6 +41,5 @@ class WebSocketService {
   }
 }
 
-// Export a singleton instance
 const websocketService = new WebSocketService();
 export default websocketService;
