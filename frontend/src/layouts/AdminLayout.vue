@@ -23,8 +23,18 @@
             </router-link>
           </li>
           <li>
+            <router-link to="/admin/writeups" class="flex items-center px-4 py-2 rounded-md hover:bg-gray-700" active-class="bg-indigo-600">
+              Write-ups
+            </router-link>
+          </li>
+          <li>
             <router-link to="/admin/settings" class="flex items-center px-4 py-2 rounded-md hover:bg-gray-700" active-class="bg-indigo-600">
               Settings
+            </router-link>
+          </li>
+          <li>
+            <router-link to="/admin/logs" class="flex items-center px-4 py-2 rounded-md hover:bg-gray-700" active-class="bg-indigo-600">
+              Audit Log
             </router-link>
           </li>
           <li>
@@ -46,5 +56,4 @@
 </template>
 
 <script setup>
-// This is a layout component, so it typically won't have complex logic.
 </script>
