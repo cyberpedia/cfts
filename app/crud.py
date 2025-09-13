@@ -37,7 +37,6 @@ def update_settings(db: Session, settings_data: schemas.CTFSettingUpdate) -> mod
 # ==================================
 
 def get_user(db: Session, user_id: int) -> Optional[models.User]:
-    """Retrieve a user by their ID."""
     return db.query(models.User).filter(models.User.id == user_id).first()
 
 def get_user_by_email(db: Session, email: str):
@@ -50,7 +49,6 @@ def get_user_by_verification_token(db: Session, token: str):
     return db.query(models.User).filter(models.User.verification_token == token).first()
 
 def get_pending_users(db: Session, skip: int = 0, limit: int = 100) -> List[models.User]:
-    """Retrieve all users who have not yet been activated."""
     return db.query(models.User).filter(models.User.is_active == False).offset(skip).limit(limit).all()
 
 def create_user(db: Session, user: schemas.UserCreate):
@@ -75,7 +73,6 @@ def update_user_score(db: Session, user: models.User, points: int):
     return user
     
 def approve_user(db: Session, user: models.User) -> models.User:
-    """Manually approves a user."""
     user.is_active = True
     user.verification_token = None
     db.commit()
@@ -235,3 +232,35 @@ def award_badge_to_user(db: Session, user: models.User, badge: models.Badge) -> 
     db.commit()
     db.refresh(db_user_badge)
     return db_user_badge
+
+# ==================================
+# Notification CRUD Functions
+# ==================================
+
+def create_notification(db: Session, user_id: int, title: str, body: str) -> models.Notification:
+    """Creates a notification for a specific user."""
+    db_notification = models.Notification(user_id=user_id, title=title, body=body)
+    db.add(db_notification)
+    db.commit()
+    db.refresh(db_notification)
+    return db_notification
+
+def get_notifications_for_user(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[models.Notification]:
+    """Retrieves all notifications for a given user, newest first."""
+    return db.query(models.Notification).filter(models.Notification.user_id == user_id).order_by(models.Notification.created_at.desc()).offset(skip).limit(limit).all()
+
+def get_notification(db: Session, notification_id: int, user_id: int) -> Optional[models.Notification]:
+    """Retrieves a single notification, ensuring it belongs to the specified user."""
+    return db.query(models.Notification).filter(
+        models.Notification.id == notification_id,
+        models.Notification.user_id == user_id
+    ).first()
+
+def mark_notification_as_read(db: Session, notification_id: int, user_id: int) -> Optional[models.Notification]:
+    """Marks a user's notification as read."""
+    db_notification = get_notification(db, notification_id=notification_id, user_id=user_id)
+    if db_notification:
+        db_notification.is_read = True
+        db.commit()
+        db.refresh(db_notification)
+    return db_notification
