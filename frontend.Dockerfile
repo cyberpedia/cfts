@@ -1,4 +1,4 @@
-# Stage 1: Build the Vue.js application
+```# Stage 1: Build the Vue.js application
 FROM node:18-alpine AS build-stage
 
 WORKDIR /app
@@ -23,3 +23,4 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
+```
