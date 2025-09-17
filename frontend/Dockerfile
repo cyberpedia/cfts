@@ -1,4 +1,3 @@
-dockerfile
 # Stage 1: Build the Vue.js application
 FROM node:18-alpine AS build-stage
 
@@ -6,8 +5,10 @@ WORKDIR /app
 
 # The context is now ./frontend, so paths are simpler
 COPY package.json ./
-COPY package-lock.json ./
-RUN npm ci
+
+# Use npm install instead of npm ci to handle potential lock file mismatches
+# and generate a new one if it's missing.
+RUN npm install
 
 # Copy the rest of the frontend source code
 COPY . .
