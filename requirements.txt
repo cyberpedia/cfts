@@ -12,3 +12,4 @@ slowapi
 redis
 itsdangerous
 pydantic-settings
+httpx
