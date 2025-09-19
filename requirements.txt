@@ -10,3 +10,5 @@ fastapi-mail
 Authlib
 slowapi
 redis
+itsdangerous
+pydantic-settings
