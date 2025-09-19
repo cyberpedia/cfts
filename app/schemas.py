@@ -84,7 +84,7 @@ class CTFSettingUpdate(BaseModel):
     ui_theme: Optional[str] = None
     event_start_time: Optional[datetime] = None
     event_end_time: Optional[datetime] = None
-    allow_registregistrations: Optional[bool] = None
+    allow_registrations: Optional[bool] = None
     allow_teams: Optional[bool] = None
     scoring_mode: Optional[str] = None
 
@@ -103,31 +103,31 @@ class DynamicChallengeInstanceCreate(DynamicChallengeInstanceBase):
 class Badge(BadgeBase):
     id: int
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserBadge(BaseModel):
     awarded_at: datetime
     badge: Badge
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class _User(BaseModel):
     id: int
     username: str
     score: int
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class _Team(BaseModel):
     id: int
     name: str
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Tag(TagBase):
     id: int
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Solve(SolveBase):
     id: int
@@ -135,7 +135,7 @@ class Solve(SolveBase):
     user: _User
     team: Optional[_Team] = None
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ChallengeList(BaseModel):
     id: int
@@ -143,7 +143,7 @@ class ChallengeList(BaseModel):
     points: int
     is_locked: bool = True
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ChallengeDetail(ChallengeBase):
     id: int
@@ -151,14 +151,14 @@ class ChallengeDetail(ChallengeBase):
     tags: List[Tag] = []
     solves: List[Solve] = []
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Team(TeamBase):
     id: int
     members: List[_User] = []
     solves: List[Solve] = []
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class User(UserBase):
     id: int
@@ -169,7 +169,7 @@ class User(UserBase):
     solves: List[Solve] = []
     badges: List[UserBadge] = []
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class LeaderboardEntry(BaseModel):
     rank: int
@@ -181,7 +181,7 @@ class LeaderboardEntry(BaseModel):
 class CTFSetting(CTFSettingBase):
     id: int
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class PublicCTFSetting(BaseModel):
     event_title: str
@@ -189,7 +189,7 @@ class PublicCTFSetting(BaseModel):
     event_start_time: Optional[datetime] = None
     event_end_time: Optional[datetime] = None
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Notification(NotificationBase):
     id: int
@@ -197,13 +197,13 @@ class Notification(NotificationBase):
     is_read: bool
     created_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class _AuditLogUser(BaseModel):
     id: int
     username: str
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class AuditLog(BaseModel):
     id: int
@@ -212,14 +212,14 @@ class AuditLog(BaseModel):
     details: Optional[Any] = None
     timestamp: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class DynamicChallengeInstance(DynamicChallengeInstanceBase):
     id: int
     user_id: int
     challenge_id: int
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Update forward references
 Team.update_forward_refs()
